@@ -111,6 +111,7 @@ function create() {
 }
 
 function update() {
+    console.log(this.physics.world.fps);
     fork1.update();
     fork2.update();
     // Update scores
@@ -150,6 +151,7 @@ class ForkModel {
         this.forkState = forkStates.IDLE;
         this.targetSprite = null;
         this.score = 0;
+        this.lastUpdateTime = Date.now();
     }
 
     setBackward() {
@@ -175,14 +177,16 @@ class ForkModel {
     }
 
     foreward() {
-        const vel = 15
-        this.moveForkByVelocity(vel);
+        const timeDiff = this.getTimeDiffAndUpdate();
+        const vel = 300
+        this.moveForkByDistance(vel * timeDiff);
         this.checkForewardHitWindowBound();
     }
 
     backward() {
-        const vel = -10;
-        this.moveForkByVelocity(vel);
+        const timeDiff = this.getTimeDiffAndUpdate();
+        const vel = -150;
+        this.moveForkByDistance(vel * timeDiff);
         this.checkBackwardReturnToOrigin();
         if (this.targetSprite != null) {
             const botCenter = this.forkSprite.getBottomCenter();
@@ -213,30 +217,41 @@ class ForkModel {
     }
 
     rotate() {
-        // Update direction of the sprite
+        const timeDiff = this.getTimeDiffAndUpdate();
+        // Update rotation of the fork based on angular velocity and time diff.
         if (this.rotateClockWise) {
-            this.forkSprite.rotation += 0.1
+            this.forkSprite.rotation += 2.0 * timeDiff;
         } else {
-            this.forkSprite.rotation -= 0.1
+            this.forkSprite.rotation -= 2.0 * timeDiff;
         } 
+        // Update direction of the sprite
         this.updateRotateDirection();
     }
 
     updateRotateDirection() {
-        if (this.forkSprite.rotation > 1.0) {
+        if (this.forkSprite.rotation > 1.3) {
             this.rotateClockWise = false;
         }
-        if (this.forkSprite.rotation < -1.0) {
+        if (this.forkSprite.rotation < -1.3) {
             this.rotateClockWise = true;
         }
     }
 
-    moveForkByVelocity(vel) {
+    // Move the fork by given distance in its current direction.
+    moveForkByDistance(distance) {
         const theta = this.forkSprite.rotation;
-        const dx = -Math.sin(theta) * vel;
-        const dy = Math.cos(theta) * vel;
+        const dx = -Math.sin(theta) * distance;
+        const dy = Math.cos(theta) * distance;
         this.forkSprite.x += dx;
         this.forkSprite.y += dy;
+    }
+
+    // Get the time elapsed since last update in seconds.
+    // Update the tracked last update timestamp.
+    getTimeDiffAndUpdate() {
+        const timeDiff = Date.now() - this.lastUpdateTime;
+        this.lastUpdateTime = Date.now();
+        return timeDiff / 1000;
     }
 
 }
