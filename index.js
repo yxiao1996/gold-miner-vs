@@ -111,7 +111,6 @@ function create() {
 }
 
 function update() {
-    console.log(this.physics.world.fps);
     fork1.update();
     fork2.update();
     // Update scores
