@@ -1,12 +1,35 @@
+// Width and height of the game window
 const windowHeight = 600;
 const windowWidth = 800;
+
+// Y value of origins of forks.
 const originY = 50;
+
+// This constant map defines the possible states of a fork
 const forkStates = {
     IDLE: "idle",
     FOREWARD: "foreward",
     BACKWARD: "backward"
-}
+};
 
+// A model class to store the properties of target
+class TargetModel {
+    constructor(name, value, weight) {
+        this.name = name;
+        this.value = value;
+        this.weight = weight;
+    }
+}
+// This constant map defines the name of different targets
+const targetConfigs = {
+    NORMAL: new TargetModel("cube", 1, 2),
+    HIGH_VALUE: new TargetModel("mushroom", 2, 1)
+};
+const targetConfigMap = new Map();
+targetConfigMap.set("cube", targetConfigs.NORMAL);
+targetConfigMap.set("mushroom", targetConfigs.HIGH_VALUE);
+
+// Phaser game configuration
 var config = {
     type: Phaser.AUTO,
     width: windowWidth,
@@ -32,7 +55,7 @@ var score1;
 var fork2;
 var forkSprite2;
 var score2;
-var targetGroup;
+var targetGroups = new Array();
 var finishMessage;
 var targetCaptured = new Map();
 var game = new Phaser.Game(config);
@@ -40,8 +63,28 @@ var game = new Phaser.Game(config);
 function preload() {
     this.load.image('fork', 'assets/fork2.png');
     this.load.image('red-fork', 'assets/red-fork.png');
-    this.load.image('cube', 'assets/gold-miner-cube.png');
-    this.load.image('mushroom', 'assets/gold-miner-mushroom.png')
+    this.load.image(targetConfigs.NORMAL.name, 'assets/gold-miner-cube.png');
+    this.load.image(targetConfigs.HIGH_VALUE.name, 'assets/gold-miner-mushroom.png')
+}
+
+// A helper function to create target group by configs
+function initializeTargetByConfig(context, targetConfig, quantity, yMin, yMax) {
+    var targetGroup = context.physics.add.staticGroup({
+        key: targetConfig.name,
+        frameQuantity: quantity,
+        immovable: true
+    });
+    // Randomly initialize the position of each target in the group.
+    var children = targetGroup.getChildren();
+    for (var i = 0; i < children.length; i++)
+    {
+        var x = Phaser.Math.Between(200, 600);
+        var y = Phaser.Math.Between(yMin, yMax);
+        children[i].setPosition(x, y);
+        children[i].type = targetConfig.name;
+    }
+    targetGroup.refresh();
+    return targetGroup;
 }
 
 function create() {
@@ -67,21 +110,10 @@ function create() {
     });
 
     // Initialize targets
-    targetGroup = this.physics.add.staticGroup({
-        key: 'cube',
-        frameQuantity: 11,
-        immovable: true
-    });
-
-    var children = targetGroup.getChildren();
-    for (var i = 0; i < children.length; i++)
-    {
-        var x = Phaser.Math.Between(100, 700);
-        var y = Phaser.Math.Between(250, 550);
-        children[i].setPosition(x, y);
-        children[i].type = "cube";
-    }
-    targetGroup.refresh();
+    normalTargetGroup = initializeTargetByConfig(this, targetConfigs.NORMAL, 5, 250, 350);
+    highValueTargetGroup = initializeTargetByConfig(this, targetConfigs.HIGH_VALUE, 5, 400, 550);
+    targetGroups.push(normalTargetGroup);
+    targetGroups.push(highValueTargetGroup);
 
     // Define a function to handle target ownership in the overlap callback
     // A map is used to track target ownership, when a overlap event is triggered,
@@ -101,14 +133,13 @@ function create() {
     }
 
     // Configure collision detection between forks and targets
-    this.physics.add.overlap(forkSprite1, targetGroup, function (forkSprite, targetSprite) {
-        console.log(targetSprite.type);
+    this.physics.add.overlap(forkSprite1, targetGroups, function (forkSprite, targetSprite) {
         if (fork1.forkState == forkStates.BACKWARD) {
             return;
         }
         updateForkIfOverlap(fork1, targetSprite);
     });
-    this.physics.add.overlap(forkSprite2, targetGroup, function (forkSprite, targetSprite) {
+    this.physics.add.overlap(forkSprite2, targetGroups, function (forkSprite, targetSprite) {
         if (fork2.forkState == forkStates.BACKWARD) {
             return;
         }
@@ -121,15 +152,28 @@ function create() {
     finishMessage = this.add.text(100, 300, '', { font: '32px Courier', fill: '#ffffff' });
 }
 
+// A helper function to check whether the game is ended 
+// by checking if there's any remaining targets.
+function isGameEnded() {
+    for (var i = 0; i < targetGroups.length; i++) {
+        if (targetGroups[i].countActive() != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function update() {
+    // Update states of forks
     fork1.update();
     fork2.update();
+
     // Update scores
     score1.setText(fork1.score);
     score2.setText(fork2.score);
 
     // Check for game end
-    if (targetGroup.countActive() == 0) {
+    if (isGameEnded()) {
         var message;
         if (fork1.score == fork2.score) {
             message = "You guys are equally strong."
@@ -183,13 +227,32 @@ class ForkModel {
 
     backward() {
         const timeDiff = this.getTimeDiffAndUpdate();
-        const vel = -150;
+        const vel = this.computeBackwardVelocity();
         this.moveForkByDistance(vel * timeDiff);
         this.checkBackwardReturnToOrigin();
         if (this.targetSprite != null) {
             const botCenter = this.forkSprite.getBottomCenter();
             this.targetSprite.setPosition(botCenter.x, botCenter.y);
-            targetGroup.refresh();
+            this.refreshTargetGroups();
+        }
+    }
+
+    // Determine velocity of backward motion based on a static speed 
+    // and optionally weight of the target.
+    computeBackwardVelocity() {
+        var velocity = -150;
+        if (this.targetSprite != null) {
+            const targetConfig = targetConfigMap.get(this.targetSprite.type);
+            velocity = velocity / targetConfig.weight;
+        }
+        return velocity;
+    }
+
+    // A helper function to refresh position of targets
+    // TODO: optimize this method to only update single target sprite.
+    refreshTargetGroups() {
+        for (var i = 0; i < targetGroups.length; i++) {
+            targetGroups[i].refresh();
         }
     }
 
@@ -206,9 +269,12 @@ class ForkModel {
         const y = this.forkSprite.y;
         if (y < originY) {
             if (this.targetSprite != null) {
-                this.score += 1;
+                // Increase score based on target config
+                const targetConfig = targetConfigMap.get(this.targetSprite.type);
+                this.score += targetConfig.value; 
+                // reset target to null after finish
                 this.targetSprite.destroy();
-                this.targetSprite = null; // reset target to null after finish
+                this.targetSprite = null; 
             }
             this.forkState = forkStates.IDLE;
         }
