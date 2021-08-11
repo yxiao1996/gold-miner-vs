@@ -1,6 +1,11 @@
 const windowHeight = 600;
 const windowWidth = 800;
 const originY = 50;
+const forkStates = {
+    IDLE: "idle",
+    FOREWARD: "foreward",
+    BACKWARD: "backward"
+}
 
 var config = {
     type: Phaser.AUTO,
@@ -35,7 +40,8 @@ var game = new Phaser.Game(config);
 function preload() {
     this.load.image('fork', 'assets/fork2.png');
     this.load.image('red-fork', 'assets/red-fork.png');
-    this.load.image('cube', 'assets/gold-miner-cube.png')
+    this.load.image('cube', 'assets/gold-miner-cube.png');
+    this.load.image('mushroom', 'assets/gold-miner-mushroom.png')
 }
 
 function create() {
@@ -45,6 +51,13 @@ function create() {
     fork1 = new ForkModel(forkSprite1);
     forkSprite2 = this.physics.add.image(600, originY, 'red-fork');
     fork2 = new ForkModel(forkSprite2);
+
+    // Local function used to trigger fork shooting when keyboard is pressed down.
+    function triggerShooting(fork) {
+        if (fork.forkState == forkStates.IDLE) {
+            fork.forkState = forkStates.FOREWARD;
+        }
+    }
 
     this.input.keyboard.on('keydown-Q', function (event) {
         triggerShooting(fork1);
@@ -66,42 +79,40 @@ function create() {
         var x = Phaser.Math.Between(100, 700);
         var y = Phaser.Math.Between(250, 550);
         children[i].setPosition(x, y);
+        children[i].type = "cube";
     }
     targetGroup.refresh();
 
-    // Configure collision detection between forks and targets
-    this.physics.add.overlap(forkSprite1, targetGroup, function (forkSprite, targetSprite) {
-        if (fork1.forkState == forkStates.BACKWARD) {
-            return;
-        }
+    // Define a function to handle target ownership in the overlap callback
+    // A map is used to track target ownership, when a overlap event is triggered,
+    // It's possible that the target will change ownership.
+    function updateForkIfOverlap(currentFork, targetSprite) {
         var prevFork = targetCaptured.get(targetSprite);
         if (prevFork != null) {
-            if (prevFork == fork1) {
+            if (prevFork == currentFork) {
                 return;
             } else {
                 prevFork.setTarget(null);
             }
         }
-        targetCaptured.set(targetSprite, fork1);
-        fork1.setTarget(targetSprite);
-        fork1.setBackward();
-    });
+        targetCaptured.set(targetSprite, currentFork);
+        currentFork.setTarget(targetSprite);
+        currentFork.setBackward();
+    }
 
+    // Configure collision detection between forks and targets
+    this.physics.add.overlap(forkSprite1, targetGroup, function (forkSprite, targetSprite) {
+        console.log(targetSprite.type);
+        if (fork1.forkState == forkStates.BACKWARD) {
+            return;
+        }
+        updateForkIfOverlap(fork1, targetSprite);
+    });
     this.physics.add.overlap(forkSprite2, targetGroup, function (forkSprite, targetSprite) {
         if (fork2.forkState == forkStates.BACKWARD) {
             return;
         }
-        var prevFork = targetCaptured.get(targetSprite);
-        if (prevFork != null) {
-            if (prevFork == fork2) {
-                return
-            } else {
-                prevFork.setTarget(null);
-            }
-        }
-        targetCaptured.set(targetSprite, fork2);
-        fork2.setTarget(targetSprite);
-        fork2.setBackward();
+        updateForkIfOverlap(fork2, targetSprite);
     });
 
     // Initialize scores of each fork and finish message
@@ -127,18 +138,6 @@ function update() {
             message = "Congratulation " + winner + ", you win!!!";
         }
         finishMessage.setText(message);
-    }
-}
-
-const forkStates = {
-    IDLE: "idle",
-    FOREWARD: "foreward",
-    BACKWARD: "backward"
-}
-
-function triggerShooting(fork) {
-    if (fork.forkState == forkStates.IDLE) {
-        fork.forkState = forkStates.FOREWARD;
     }
 }
 
