@@ -1,9 +1,9 @@
 // Width and height of the game window
-const windowHeight = 600;
-const windowWidth = 800;
+const windowHeight = 768;
+const windowWidth = 1024;
 
 // Y value of origins of forks.
-const originY = 50;
+const originY = 64;
 
 // This constant map defines the possible states of a fork
 const forkStates = {
@@ -34,6 +34,10 @@ var config = {
     type: Phaser.AUTO,
     width: windowWidth,
     height: windowHeight,
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    },
     backgroundColor: '#010101',
     physics: {
         default: 'arcade',
@@ -63,7 +67,7 @@ var game = new Phaser.Game(config);
 function preload() {
     this.load.image('fork', 'assets/fork2.png');
     this.load.image('red-fork', 'assets/red-fork.png');
-    this.load.image(targetConfigs.NORMAL.name, 'assets/gold-miner-cube.png');
+    this.load.image(targetConfigs.NORMAL.name, 'assets/brick.jpeg');
     this.load.image(targetConfigs.HIGH_VALUE.name, 'assets/gold-miner-mushroom.png')
 }
 
@@ -78,7 +82,7 @@ function initializeTargetByConfig(context, targetConfig, quantity, yMin, yMax) {
     var children = targetGroup.getChildren();
     for (var i = 0; i < children.length; i++)
     {
-        var x = Phaser.Math.Between(200, 600);
+        var x = Phaser.Math.Between(256, 768);
         var y = Phaser.Math.Between(yMin, yMax);
         children[i].setPosition(x, y);
         children[i].type = targetConfig.name;
@@ -90,9 +94,9 @@ function initializeTargetByConfig(context, targetConfig, quantity, yMin, yMax) {
 function create() {
 
     // Initialize the forks
-    forkSprite1 = this.physics.add.image(200, originY, 'fork');
+    forkSprite1 = this.physics.add.image(384, originY, 'fork');
     fork1 = new ForkModel(forkSprite1);
-    forkSprite2 = this.physics.add.image(600, originY, 'red-fork');
+    forkSprite2 = this.physics.add.image(640, originY, 'red-fork');
     fork2 = new ForkModel(forkSprite2);
 
     // Local function used to trigger fork shooting when keyboard is pressed down.
@@ -110,8 +114,8 @@ function create() {
     });
 
     // Initialize targets
-    normalTargetGroup = initializeTargetByConfig(this, targetConfigs.NORMAL, 5, 250, 350);
-    highValueTargetGroup = initializeTargetByConfig(this, targetConfigs.HIGH_VALUE, 5, 400, 550);
+    normalTargetGroup = initializeTargetByConfig(this, targetConfigs.NORMAL, 8, 250, 400);
+    highValueTargetGroup = initializeTargetByConfig(this, targetConfigs.HIGH_VALUE, 8, 450, 700);
     targetGroups.push(normalTargetGroup);
     targetGroups.push(highValueTargetGroup);
 
@@ -148,7 +152,7 @@ function create() {
 
     // Initialize scores of each fork and finish message
     score1 = this.add.text(10, 10, '0', { font: '32px Courier', fill: '#2d6b2d' });
-    score2 = this.add.text(windowWidth - 60, 10, '0', { font: '32px Courier', fill: '#2d6b2d' });
+    score2 = this.add.text(windowWidth - 60, 10, '0', { font: '32px Courier', fill: '#6b2d2d' });
     finishMessage = this.add.text(100, 300, '', { font: '32px Courier', fill: '#ffffff' });
 }
 
