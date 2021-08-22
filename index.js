@@ -38,6 +38,7 @@ targetConfigMap.set(CUBE, targetConfigs.NORMAL);
 targetConfigMap.set(MUSHROOM, targetConfigs.HIGH_VALUE);
 targetConfigMap.set(QUESTION_HIGH, targetConfigs.RANDOM_HIGH_VALUE);
 targetConfigMap.set(QUESTION_LOW, targetConfigs.RANDOM_LOW_VALUE);
+
 // An array to store the target names which are used to check to game end
 const targetsToComplete = [CUBE, MUSHROOM]
 
@@ -129,8 +130,9 @@ function create() {
     });
 
     // Initialize targets
-    normalTargetGroup = initializeTargetByConfig(this, targetConfigs.NORMAL, 9, 200, 350, 256, 768);
-    highValueTargetGroup = initializeTargetByConfig(this, targetConfigs.HIGH_VALUE, 7, 400, 650, 256, 768);
+    // TODO: make the number of targets configurable
+    normalTargetGroup = initializeTargetByConfig(this, targetConfigs.NORMAL, 7, 200, 350, 256, 768);
+    highValueTargetGroup = initializeTargetByConfig(this, targetConfigs.HIGH_VALUE, 6, 400, 650, 256, 768);
     randomHighTargetGroup = initializeTargetByConfig(this, targetConfigs.RANDOM_HIGH_VALUE, 1, 700, 701, 128, 896);
     randomLowTargetGroup = initializeTargetByConfig(this, targetConfigs.RANDOM_LOW_VALUE, 1, 700, 701, 128, 896);
     targetGroups.push(normalTargetGroup);
@@ -178,14 +180,23 @@ function create() {
 // A helper function to check whether the game is ended 
 // by checking if there's any remaining targets.
 function isGameEnded() {
+    var remainPoints = 0;
+    var group;
     for (var i = 0; i < targetGroups.length; i++) {
-        if (targetsToComplete.includes(targetGroups[i].name)) {
-            if (targetGroups[i].countActive() != 0) {
-                return false;
-            }
+        group = targetGroups[i];
+        if (targetsToComplete.includes(group.name)) {
+            // if (targetGroups[i].countActive() != 0) {
+            //     return false;
+            // }
+            remainPoints += group.countActive() * targetConfigMap.get(group.name).value
         }
     }
-    return true;
+    pointDifference = Math.abs(fork1.score - fork2.score);
+    if (pointDifference > remainPoints) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 function update() {
