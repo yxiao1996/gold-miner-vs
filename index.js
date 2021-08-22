@@ -20,14 +20,26 @@ class TargetModel {
         this.weight = weight;
     }
 }
+
+// Constant values for target names
+const CUBE = "cube";
+const MUSHROOM = "mushroom";
+const QUESTION_HIGH = "question_high";
+const QUESTION_LOW = "question_low";
 // This constant map defines the name of different targets
 const targetConfigs = {
-    NORMAL: new TargetModel("cube", 1, 2),
-    HIGH_VALUE: new TargetModel("mushroom", 2, 1)
+    NORMAL: new TargetModel(CUBE, 1, 2),
+    HIGH_VALUE: new TargetModel(MUSHROOM, 2, 1),
+    RANDOM_HIGH_VALUE: new TargetModel(QUESTION_HIGH, 3, 0.3),
+    RANDOM_LOW_VALUE: new TargetModel(QUESTION_LOW, -3, 0.3)
 };
 const targetConfigMap = new Map();
-targetConfigMap.set("cube", targetConfigs.NORMAL);
-targetConfigMap.set("mushroom", targetConfigs.HIGH_VALUE);
+targetConfigMap.set(CUBE, targetConfigs.NORMAL);
+targetConfigMap.set(MUSHROOM, targetConfigs.HIGH_VALUE);
+targetConfigMap.set(QUESTION_HIGH, targetConfigs.RANDOM_HIGH_VALUE);
+targetConfigMap.set(QUESTION_LOW, targetConfigs.RANDOM_LOW_VALUE);
+// An array to store the target names which are used to check to game end
+const targetsToComplete = [CUBE, MUSHROOM]
 
 // Phaser game configuration
 var config = {
@@ -68,21 +80,24 @@ function preload() {
     this.load.image('fork', 'assets/fork2.png');
     this.load.image('red-fork', 'assets/red-fork.png');
     this.load.image(targetConfigs.NORMAL.name, 'assets/brick.jpeg');
-    this.load.image(targetConfigs.HIGH_VALUE.name, 'assets/gold-miner-mushroom.png')
+    this.load.image(targetConfigs.HIGH_VALUE.name, 'assets/gold-miner-mushroom.png');
+    this.load.image(targetConfigs.RANDOM_HIGH_VALUE.name, 'assets/question_sm.png');
+    this.load.image(targetConfigs.RANDOM_LOW_VALUE.name, 'assets/question_sm.png');
 }
 
 // A helper function to create target group by configs
-function initializeTargetByConfig(context, targetConfig, quantity, yMin, yMax) {
+function initializeTargetByConfig(context, targetConfig, quantity, yMin, yMax, xMin, xMax) {
     var targetGroup = context.physics.add.staticGroup({
         key: targetConfig.name,
         frameQuantity: quantity,
         immovable: true
     });
+    targetGroup.name = targetConfig.name;
     // Randomly initialize the position of each target in the group.
     var children = targetGroup.getChildren();
     for (var i = 0; i < children.length; i++)
     {
-        var x = Phaser.Math.Between(256, 768);
+        var x = Phaser.Math.Between(xMin, xMax);
         var y = Phaser.Math.Between(yMin, yMax);
         children[i].setPosition(x, y);
         children[i].type = targetConfig.name;
@@ -114,10 +129,14 @@ function create() {
     });
 
     // Initialize targets
-    normalTargetGroup = initializeTargetByConfig(this, targetConfigs.NORMAL, 8, 250, 400);
-    highValueTargetGroup = initializeTargetByConfig(this, targetConfigs.HIGH_VALUE, 8, 450, 700);
+    normalTargetGroup = initializeTargetByConfig(this, targetConfigs.NORMAL, 9, 200, 350, 256, 768);
+    highValueTargetGroup = initializeTargetByConfig(this, targetConfigs.HIGH_VALUE, 7, 400, 650, 256, 768);
+    randomHighTargetGroup = initializeTargetByConfig(this, targetConfigs.RANDOM_HIGH_VALUE, 1, 700, 701, 128, 896);
+    randomLowTargetGroup = initializeTargetByConfig(this, targetConfigs.RANDOM_LOW_VALUE, 1, 700, 701, 128, 896);
     targetGroups.push(normalTargetGroup);
     targetGroups.push(highValueTargetGroup);
+    targetGroups.push(randomHighTargetGroup);
+    targetGroups.push(randomLowTargetGroup);
 
     // Define a function to handle target ownership in the overlap callback
     // A map is used to track target ownership, when a overlap event is triggered,
@@ -160,8 +179,10 @@ function create() {
 // by checking if there's any remaining targets.
 function isGameEnded() {
     for (var i = 0; i < targetGroups.length; i++) {
-        if (targetGroups[i].countActive() != 0) {
-            return false;
+        if (targetsToComplete.includes(targetGroups[i].name)) {
+            if (targetGroups[i].countActive() != 0) {
+                return false;
+            }
         }
     }
     return true;
